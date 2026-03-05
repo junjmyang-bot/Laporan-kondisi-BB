@@ -711,7 +711,8 @@ def main() -> None:
             st.rerun()
     group_3: list[dict] = []
     for idx, slot_time in enumerate(slots_3):
-        with st.expander(f'Jam {slot_time}', expanded=(idx == 0)):
+        close_once = bool(st.session_state.pop(f'close_once_3_{idx}', False))
+        with st.expander(f'Jam {slot_time}', expanded=(False if close_once else (idx == 0))):
             slot_note_value = st.radio(
                 f'[{slot_time}] Status slot',
                 SLOT_STATUS_OPTIONS,
@@ -740,7 +741,9 @@ def main() -> None:
                     st.session_state[f'confirm_rm_3_{idx}'] = False
                     st.rerun()
             if st.button('Simpan slot ini', key=f'save_3_{idx}'):
-                st.success(f'Slot {slot_time} tersimpan.')
+                st.session_state[f'close_once_3_{idx}'] = True
+                persist_state_to_disk()
+                st.rerun()
             group_3.append(
                 {
                     'slot_time': slot_time,
@@ -770,7 +773,8 @@ def main() -> None:
     group_4: list[dict] = []
     for idx, slot_time in enumerate(slots_4):
         slot_note_4 = str(st.session_state.get(f'g4_note_{idx}', '')).strip()
-        with st.expander(f'Jam {slot_time}', expanded=(idx == 0)):
+        close_once = bool(st.session_state.pop(f'close_once_4_{idx}', False))
+        with st.expander(f'Jam {slot_time}', expanded=(False if close_once else (idx == 0))):
             slot_note_value = st.radio(
                 f'[{slot_time}] Status slot',
                 SLOT_STATUS_OPTIONS,
@@ -798,7 +802,9 @@ def main() -> None:
                     st.session_state[f'confirm_rm_4_{idx}'] = False
                     st.rerun()
             if st.button('Simpan slot ini', key=f'save_4_{idx}'):
-                st.success(f'Slot {slot_time} tersimpan.')
+                st.session_state[f'close_once_4_{idx}'] = True
+                persist_state_to_disk()
+                st.rerun()
             group_4.append({'slot_time': slot_time, 'slot_note': str(slot_note_value or '').strip(), 'bb_masuk': bb_rows})
 
     st.subheader('5. Status keranjang ubi sudah steam')
@@ -820,7 +826,8 @@ def main() -> None:
     group_5: list[dict] = []
     for idx, slot_time in enumerate(slots_5):
         slot_note_5 = str(st.session_state.get(f'g5_note_{idx}', '')).strip()
-        with st.expander(f'Jam {slot_time}', expanded=(idx == 0)):
+        close_once = bool(st.session_state.pop(f'close_once_5_{idx}', False))
+        with st.expander(f'Jam {slot_time}', expanded=(False if close_once else (idx == 0))):
             slot_note_value = st.radio(
                 f'[{slot_time}] Status slot',
                 SLOT_STATUS_OPTIONS,
@@ -850,7 +857,9 @@ def main() -> None:
                     st.session_state[f'confirm_rm_5_{idx}'] = False
                     st.rerun()
             if st.button('Simpan slot ini', key=f'save_5_{idx}'):
-                st.success(f'Slot {slot_time} tersimpan.')
+                st.session_state[f'close_once_5_{idx}'] = True
+                persist_state_to_disk()
+                st.rerun()
             group_5.append(
                 {
                     'slot_time': slot_time,
@@ -880,7 +889,8 @@ def main() -> None:
     group_6: list[dict] = []
     for idx, slot_time in enumerate(slots_6):
         slot_note_6 = str(st.session_state.get(f'g6_note_{idx}', '')).strip()
-        with st.expander(f'Jam {slot_time}', expanded=(idx == 0)):
+        close_once = bool(st.session_state.pop(f'close_once_6_{idx}', False))
+        with st.expander(f'Jam {slot_time}', expanded=(False if close_once else (idx == 0))):
             slot_note_value = st.radio(
                 f'[{slot_time}] Status slot',
                 SLOT_STATUS_OPTIONS,
@@ -909,7 +919,9 @@ def main() -> None:
                     st.session_state[f'confirm_rm_6_{idx}'] = False
                     st.rerun()
             if st.button('Simpan slot ini', key=f'save_6_{idx}'):
-                st.success(f'Slot {slot_time} tersimpan.')
+                st.session_state[f'close_once_6_{idx}'] = True
+                persist_state_to_disk()
+                st.rerun()
             group_6.append(
                 {
                     'slot_time': slot_time,
@@ -938,7 +950,8 @@ def main() -> None:
     group_7: list[dict] = []
     for idx, slot_time in enumerate(slots_7):
         slot_note_7 = str(st.session_state.get(f'g7_note_{idx}', '')).strip()
-        with st.expander(f'Jam {slot_time}', expanded=(idx == 0)):
+        close_once = bool(st.session_state.pop(f'close_once_7_{idx}', False))
+        with st.expander(f'Jam {slot_time}', expanded=(False if close_once else (idx == 0))):
             slot_note_value = st.radio(
                 f'[{slot_time}] Status slot',
                 SLOT_STATUS_OPTIONS,
@@ -966,7 +979,9 @@ def main() -> None:
                     st.session_state[f'confirm_rm_7_{idx}'] = False
                     st.rerun()
             if st.button('Simpan slot ini', key=f'save_7_{idx}'):
-                st.success(f'Slot {slot_time} tersimpan.')
+                st.session_state[f'close_once_7_{idx}'] = True
+                persist_state_to_disk()
+                st.rerun()
             group_7.append({'slot_time': slot_time, 'slot_note': str(slot_note_value or '').strip(), 'hb_rows': hb_rows})
 
     st.subheader('8. Catatan')
