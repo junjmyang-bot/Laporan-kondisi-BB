@@ -69,6 +69,9 @@ def edit_existing_message(message_id: int, message: str) -> tuple[bool, str]:
         'editMessageText', {'chat_id': chat_id, 'message_id': message_id, 'text': message}
     )
     if not ok:
+        # Telegram returns HTTP 400 when edit content is identical; treat as successful no-op.
+        if 'message is not modified' in str(msg).lower():
+            return True, 'Pesan Telegram tidak berubah (konten sama).'
         return False, msg
     return True, 'Pesan Telegram berhasil diperbarui.'
 
