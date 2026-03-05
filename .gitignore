@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.log
+*.out
+*.err
+*.out.log
+*.err.log
+.bb_pending_submission.json
+.laporan_kondisi_bb_state.json
+.streamlit/secrets.toml
