@@ -567,7 +567,10 @@ def sync_scope_if_needed(work_date: str, team_id: str) -> None:
                 st.session_state[key] = val.strftime('%H:%M')
             else:
                 st.session_state[key] = _parse_hhmm_text(str(val)) or round_to_half_hour(now_local()).strftime('%H:%M')
-        elif _is_persistable_dynamic_key(key):
+        elif key.startswith(STATE_PREFIX_KEYS):
+            if _is_persistable_dynamic_key(key):
+                st.session_state[key] = val
+        else:
             st.session_state[key] = val
 
     if not scoped:
