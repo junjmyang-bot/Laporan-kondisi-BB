@@ -136,6 +136,19 @@ def _next_available_after(base_hhmm: str, existing: list[str]) -> str:
     return candidate
 
 
+def _slot_token(hhmm: str) -> str:
+    parsed = _parse_hhmm_text(hhmm)
+    if not parsed:
+        raw = ''.join(ch for ch in str(hhmm) if ch.isalnum()).lower()
+        return f'raw_{raw or "empty"}'
+    return parsed.replace(':', '')
+
+
+def _migrate_session_key(new_key: str, old_key: str) -> None:
+    if old_key and new_key not in st.session_state and old_key in st.session_state:
+        st.session_state[new_key] = st.session_state.get(old_key)
+
+
 def _render_start_time_input(label: str, key: str) -> str:
     raw = st.text_input(label, key=key, placeholder='HH:MM')
     parsed = _parse_hhmm_text(str(raw))
@@ -186,10 +199,16 @@ def _is_persistable_dynamic_key(key: str) -> bool:
     return not any(token in key for token in transient_tokens)
 
 
-def _render_bb_rows(prefix: str, slot_idx: int, seed_rows: list[dict]) -> list[dict]:
-    count_key = f'{prefix}_bb_count_{slot_idx}'
+def _render_bb_rows(prefix: str, slot_token: str, seed_rows: list[dict], legacy_slot_idx: int | None = None) -> list[dict]:
+    count_key = f'{prefix}_bb_count_{slot_token}'
+    old_count_key = f'{prefix}_bb_count_{legacy_slot_idx}' if legacy_slot_idx is not None else ''
     seed_count = len(seed_rows) if isinstance(seed_rows, list) and seed_rows else 1
     if count_key not in st.session_state:
+        if old_count_key and old_count_key in st.session_state:
+            try:
+                seed_count = int(st.session_state.get(old_count_key, seed_count))
+            except Exception:
+                pass
         st.session_state[count_key] = max(1, min(10, seed_count))
     row_count = int(st.session_state[count_key])
     rc1, rc2, rc3 = st.columns([1, 1, 4])
@@ -204,14 +223,26 @@ def _render_bb_rows(prefix: str, slot_idx: int, seed_rows: list[dict]) -> list[d
     out: list[dict] = []
     for row_idx in range(row_count):
         seed = seed_rows[row_idx] if row_idx < len(seed_rows) and isinstance(seed_rows[row_idx], dict) else {}
-        k_supplier = f'{prefix}_bb_supplier_{slot_idx}_{row_idx}'
-        k_ukuran = f'{prefix}_bb_ukuran_{slot_idx}_{row_idx}'
-        k_matang = f'{prefix}_bb_matang_{slot_idx}_{row_idx}'
-        k_selesai = f'{prefix}_bb_selesai_{slot_idx}_{row_idx}'
+        k_supplier = f'{prefix}_bb_supplier_{slot_token}_{row_idx}'
+        k_ukuran = f'{prefix}_bb_ukuran_{slot_token}_{row_idx}'
+        k_matang = f'{prefix}_bb_matang_{slot_token}_{row_idx}'
+        k_selesai = f'{prefix}_bb_selesai_{slot_token}_{row_idx}'
+        old_k_supplier = f'{prefix}_bb_supplier_{legacy_slot_idx}_{row_idx}' if legacy_slot_idx is not None else ''
+        old_k_ukuran = f'{prefix}_bb_ukuran_{legacy_slot_idx}_{row_idx}' if legacy_slot_idx is not None else ''
+        old_k_matang = f'{prefix}_bb_matang_{legacy_slot_idx}_{row_idx}' if legacy_slot_idx is not None else ''
+        old_k_selesai = f'{prefix}_bb_selesai_{legacy_slot_idx}_{row_idx}' if legacy_slot_idx is not None else ''
+        _migrate_session_key(k_matang, old_k_matang)
+        _migrate_session_key(k_selesai, old_k_selesai)
         if k_supplier not in st.session_state:
-            st.session_state[k_supplier] = str(seed.get('supplier', '')).strip()
+            if old_k_supplier and old_k_supplier in st.session_state:
+                st.session_state[k_supplier] = str(st.session_state.get(old_k_supplier, '')).strip()
+            else:
+                st.session_state[k_supplier] = str(seed.get('supplier', '')).strip()
         if k_ukuran not in st.session_state:
-            st.session_state[k_ukuran] = str(seed.get('ukuran', '')).strip()
+            if old_k_ukuran and old_k_ukuran in st.session_state:
+                st.session_state[k_ukuran] = str(st.session_state.get(old_k_ukuran, '')).strip()
+            else:
+                st.session_state[k_ukuran] = str(seed.get('ukuran', '')).strip()
 
         st.markdown(f'BB #{row_idx + 1}')
         c1, c2, c3, c4 = st.columns([2, 2, 1, 1])
@@ -230,7 +261,7 @@ def _render_bb_rows(prefix: str, slot_idx: int, seed_rows: list[dict]) -> list[d
     return out
 
 
-def _render_hb_rows(prefix: str, slot_idx: int, seed_rows: list[dict]) -> list[dict]:
+def _render_hb_rows(prefix: str, slot_token: str, seed_rows: list[dict], legacy_slot_idx: int | None = None) -> list[dict]:
     seed_map: dict[str, dict] = {}
     for row in seed_rows or []:
         if isinstance(row, dict):
@@ -247,11 +278,21 @@ def _render_hb_rows(prefix: str, slot_idx: int, seed_rows: list[dict]) -> list[d
     for hb_name in HB_UNITS:
         key_slug = hb_name.lower().replace(' ', '')
         seed = seed_map.get(hb_name, {})
-        k_d = f'{prefix}_hb_dipakai_{slot_idx}_{key_slug}'
-        k_a = f'{prefix}_hb_alasan_{slot_idx}_{key_slug}'
-        k_g = f'{prefix}_hb_gas_{slot_idx}_{key_slug}'
+        k_d = f'{prefix}_hb_dipakai_{slot_token}_{key_slug}'
+        k_a = f'{prefix}_hb_alasan_{slot_token}_{key_slug}'
+        k_g = f'{prefix}_hb_gas_{slot_token}_{key_slug}'
+        old_k_d = f'{prefix}_hb_dipakai_{legacy_slot_idx}_{key_slug}' if legacy_slot_idx is not None else ''
+        old_k_a = f'{prefix}_hb_alasan_{legacy_slot_idx}_{key_slug}' if legacy_slot_idx is not None else ''
+        old_k_g = f'{prefix}_hb_gas_{legacy_slot_idx}_{key_slug}' if legacy_slot_idx is not None else ''
+        if old_k_d and k_d not in st.session_state and old_k_d in st.session_state:
+            st.session_state[k_d] = st.session_state.get(old_k_d)
         if k_a not in st.session_state:
-            st.session_state[k_a] = str(seed.get('alasan', '')).strip()
+            if old_k_a and old_k_a in st.session_state:
+                st.session_state[k_a] = str(st.session_state.get(old_k_a, '')).strip()
+            else:
+                st.session_state[k_a] = str(seed.get('alasan', '')).strip()
+        if old_k_g and k_g not in st.session_state and old_k_g in st.session_state:
+            st.session_state[k_g] = st.session_state.get(old_k_g)
 
         c0, c1, c2, c3 = st.columns([1.1, 1, 2.2, 1])
         c0.markdown(hb_name)
@@ -431,6 +472,14 @@ def refresh_scope_lock(work_date: str, team_id: str) -> None:
     acquire_scope_lock(work_date, team_id, operator, force=False)
 
 
+def _session_owns_scope_lock(work_date: str, team_id: str) -> bool:
+    lock = get_scope_lock(work_date, team_id)
+    token = st.session_state.get('lock_token')
+    if not isinstance(lock, dict) or not token:
+        return False
+    return _lock_is_active(lock) and lock.get('token') == token
+
+
 def _parse_time_hhmm(text: str) -> time:
     try:
         h, m = str(text).split(':', 1)
@@ -542,11 +591,20 @@ def persist_state_to_disk() -> None:
     if not team_id or not work_date:
         return
     expected = st.session_state.get('scope_version')
-    ok, new_version = save_scoped_state(work_date, team_id, build_persist_payload(), expected_version=expected)
+    payload = build_persist_payload()
+    ok, new_version = save_scoped_state(work_date, team_id, payload, expected_version=expected)
     if ok:
         st.session_state['scope_version'] = new_version
         st.session_state['_scope_conflict'] = False
     else:
+        # If version drift happens while this session still owns the active lock,
+        # do a last-write-wins retry so user edits are not silently dropped.
+        if _session_owns_scope_lock(work_date, team_id):
+            retry_ok, retry_version = save_scoped_state(work_date, team_id, payload, expected_version=None)
+            if retry_ok:
+                st.session_state['scope_version'] = retry_version
+                st.session_state['_scope_conflict'] = False
+                return
         st.session_state['_scope_conflict'] = True
 
 
@@ -716,39 +774,46 @@ def main() -> None:
             st.rerun()
     group_3: list[dict] = []
     for idx, slot_time in enumerate(slots_3):
-        close_once = bool(st.session_state.pop(f'close_once_3_{idx}', False))
+        slot_token = _slot_token(slot_time)
+        note_key = f'g3_note_{slot_token}'
+        read_key = f'g3_read_{slot_token}'
+        know_key = f'g3_know_{slot_token}'
+        _migrate_session_key(note_key, f'g3_note_{idx}')
+        _migrate_session_key(read_key, f'g3_read_{idx}')
+        _migrate_session_key(know_key, f'g3_know_{idx}')
+        close_once = bool(st.session_state.pop(f'close_once_3_{slot_token}', False) or st.session_state.pop(f'close_once_3_{idx}', False))
         exp_label = f'Jam {slot_time} [saved]' if close_once else f'Jam {slot_time}'
         with st.expander(exp_label, expanded=False):
             slot_note_value = st.radio(
                 f'[{slot_time}] Status slot',
                 SLOT_STATUS_OPTIONS,
                 index=None,
-                key=f'g3_note_{idx}',
+                key=note_key,
                 horizontal=True,
             )
             c1, c2 = st.columns(2)
-            read_val = c1.radio(f'[{slot_time}] Sudah baca list BB di steam', OX_OPTIONS, index=None, horizontal=True, key=f'g3_read_{idx}')
-            know_val = c2.radio(f'[{slot_time}] Sudah tahu BB & ukuran', OX_OPTIONS, index=None, horizontal=True, key=f'g3_know_{idx}')
+            read_val = c1.radio(f'[{slot_time}] Sudah baca list BB di steam', OX_OPTIONS, index=None, horizontal=True, key=read_key)
+            know_val = c2.radio(f'[{slot_time}] Sudah tahu BB & ukuran', OX_OPTIONS, index=None, horizontal=True, key=know_key)
             a1, a2, a3 = st.columns(3)
-            if a1.button('Next slot tambah', key=f'next_3_{idx}'):
+            if a1.button('Next slot tambah', key=f'next_3_{slot_token}'):
                 slots = list(st.session_state['slots_3'])
                 slots.insert(idx + 1, _next_available_after(slot_time, slots))
                 st.session_state['slots_3'] = sorted(slots, key=_slot_sort_key)
                 st.rerun()
-            if a2.button('Simpan slot ini', key=f'save_3_{idx}'):
-                st.session_state[f'close_once_3_{idx}'] = True
+            if a2.button('Simpan slot ini', key=f'save_3_{slot_token}'):
+                st.session_state[f'close_once_3_{slot_token}'] = True
                 st.session_state['_slot_save_requested'] = f'Slot {slot_time} tersimpan.'
                 st.rerun()
-            if a3.button('Hapus slot ini', key=f'ask_rm_3_{idx}', disabled=len(st.session_state['slots_3']) <= 1):
-                st.session_state[f'confirm_rm_3_{idx}'] = True
-            if st.session_state.get(f'confirm_rm_3_{idx}'):
+            if a3.button('Hapus slot ini', key=f'ask_rm_3_{slot_token}', disabled=len(st.session_state['slots_3']) <= 1):
+                st.session_state[f'confirm_rm_3_{slot_token}'] = True
+            if st.session_state.get(f'confirm_rm_3_{slot_token}'):
                 q1, q2 = st.columns(2)
-                if q1.button('Ya, hapus', key=f'yes_rm_3_{idx}'):
+                if q1.button('Ya, hapus', key=f'yes_rm_3_{slot_token}'):
                     st.session_state['slots_3'] = [x for i, x in enumerate(st.session_state['slots_3']) if i != idx]
-                    st.session_state[f'confirm_rm_3_{idx}'] = False
+                    st.session_state[f'confirm_rm_3_{slot_token}'] = False
                     st.rerun()
-                if q2.button('Batal', key=f'no_rm_3_{idx}'):
-                    st.session_state[f'confirm_rm_3_{idx}'] = False
+                if q2.button('Batal', key=f'no_rm_3_{slot_token}'):
+                    st.session_state[f'confirm_rm_3_{slot_token}'] = False
                     st.rerun()
             group_3.append(
                 {
@@ -778,39 +843,41 @@ def main() -> None:
             st.rerun()
     group_4: list[dict] = []
     for idx, slot_time in enumerate(slots_4):
-        slot_note_4 = str(st.session_state.get(f'g4_note_{idx}', '')).strip()
-        close_once = bool(st.session_state.pop(f'close_once_4_{idx}', False))
+        slot_token = _slot_token(slot_time)
+        note_key = f'g4_note_{slot_token}'
+        _migrate_session_key(note_key, f'g4_note_{idx}')
+        close_once = bool(st.session_state.pop(f'close_once_4_{slot_token}', False) or st.session_state.pop(f'close_once_4_{idx}', False))
         exp_label = f'Jam {slot_time} [saved]' if close_once else f'Jam {slot_time}'
         with st.expander(exp_label, expanded=False):
             slot_note_value = st.radio(
                 f'[{slot_time}] Status slot',
                 SLOT_STATUS_OPTIONS,
                 index=None,
-                key=f'g4_note_{idx}',
+                key=note_key,
                 horizontal=True,
             )
             st.caption('Contoh: Darmi 1/S8 / O / O')
-            bb_rows = _render_bb_rows('g4', idx, [])
+            bb_rows = _render_bb_rows('g4', slot_token, [], legacy_slot_idx=idx)
             a1, a2, a3 = st.columns(3)
-            if a1.button('Next slot tambah', key=f'next_4_{idx}'):
+            if a1.button('Next slot tambah', key=f'next_4_{slot_token}'):
                 slots = list(st.session_state['slots_4'])
                 slots.insert(idx + 1, _next_available_after(slot_time, slots))
                 st.session_state['slots_4'] = sorted(slots, key=_slot_sort_key)
                 st.rerun()
-            if a2.button('Simpan slot ini', key=f'save_4_{idx}'):
-                st.session_state[f'close_once_4_{idx}'] = True
+            if a2.button('Simpan slot ini', key=f'save_4_{slot_token}'):
+                st.session_state[f'close_once_4_{slot_token}'] = True
                 st.session_state['_slot_save_requested'] = f'Slot {slot_time} tersimpan.'
                 st.rerun()
-            if a3.button('Hapus slot ini', key=f'ask_rm_4_{idx}', disabled=len(st.session_state['slots_4']) <= 1):
-                st.session_state[f'confirm_rm_4_{idx}'] = True
-            if st.session_state.get(f'confirm_rm_4_{idx}'):
+            if a3.button('Hapus slot ini', key=f'ask_rm_4_{slot_token}', disabled=len(st.session_state['slots_4']) <= 1):
+                st.session_state[f'confirm_rm_4_{slot_token}'] = True
+            if st.session_state.get(f'confirm_rm_4_{slot_token}'):
                 q1, q2 = st.columns(2)
-                if q1.button('Ya, hapus', key=f'yes_rm_4_{idx}'):
+                if q1.button('Ya, hapus', key=f'yes_rm_4_{slot_token}'):
                     st.session_state['slots_4'] = [x for i, x in enumerate(st.session_state['slots_4']) if i != idx]
-                    st.session_state[f'confirm_rm_4_{idx}'] = False
+                    st.session_state[f'confirm_rm_4_{slot_token}'] = False
                     st.rerun()
-                if q2.button('Batal', key=f'no_rm_4_{idx}'):
-                    st.session_state[f'confirm_rm_4_{idx}'] = False
+                if q2.button('Batal', key=f'no_rm_4_{slot_token}'):
+                    st.session_state[f'confirm_rm_4_{slot_token}'] = False
                     st.rerun()
             group_4.append({'slot_time': slot_time, 'slot_note': str(slot_note_value or '').strip(), 'bb_masuk': bb_rows})
 
@@ -832,41 +899,49 @@ def main() -> None:
             st.rerun()
     group_5: list[dict] = []
     for idx, slot_time in enumerate(slots_5):
-        slot_note_5 = str(st.session_state.get(f'g5_note_{idx}', '')).strip()
-        close_once = bool(st.session_state.pop(f'close_once_5_{idx}', False))
+        slot_token = _slot_token(slot_time)
+        note_key = f'g5_note_{slot_token}'
+        empty_key = f'g5_empty_{slot_token}'
+        hand_key = f'g5_hand_{slot_token}'
+        break_key = f'g5_break_{slot_token}'
+        _migrate_session_key(note_key, f'g5_note_{idx}')
+        _migrate_session_key(empty_key, f'g5_empty_{idx}')
+        _migrate_session_key(hand_key, f'g5_hand_{idx}')
+        _migrate_session_key(break_key, f'g5_break_{idx}')
+        close_once = bool(st.session_state.pop(f'close_once_5_{slot_token}', False) or st.session_state.pop(f'close_once_5_{idx}', False))
         exp_label = f'Jam {slot_time} [saved]' if close_once else f'Jam {slot_time}'
         with st.expander(exp_label, expanded=False):
             slot_note_value = st.radio(
                 f'[{slot_time}] Status slot',
                 SLOT_STATUS_OPTIONS,
                 index=None,
-                key=f'g5_note_{idx}',
+                key=note_key,
                 horizontal=True,
             )
             s1, s2, s3 = st.columns(3)
-            v1 = s1.radio(f'[{slot_time}] Keranjang stainless kosong', OX_OPTIONS, index=None, horizontal=True, key=f'g5_empty_{idx}')
-            v2 = s2.radio(f'[{slot_time}] Handover keranjang kosong ke steam', OX_OPTIONS, index=None, horizontal=True, key=f'g5_hand_{idx}')
-            v3 = s3.radio(f'[{slot_time}] Sebelum istirahat kosongkan semua', OX_OPTIONS, index=None, horizontal=True, key=f'g5_break_{idx}')
+            v1 = s1.radio(f'[{slot_time}] Keranjang stainless kosong', OX_OPTIONS, index=None, horizontal=True, key=empty_key)
+            v2 = s2.radio(f'[{slot_time}] Handover keranjang kosong ke steam', OX_OPTIONS, index=None, horizontal=True, key=hand_key)
+            v3 = s3.radio(f'[{slot_time}] Sebelum istirahat kosongkan semua', OX_OPTIONS, index=None, horizontal=True, key=break_key)
             a1, a2, a3 = st.columns(3)
-            if a1.button('Next slot tambah', key=f'next_5_{idx}'):
+            if a1.button('Next slot tambah', key=f'next_5_{slot_token}'):
                 slots = list(st.session_state['slots_5'])
                 slots.insert(idx + 1, _next_available_after(slot_time, slots))
                 st.session_state['slots_5'] = sorted(slots, key=_slot_sort_key)
                 st.rerun()
-            if a2.button('Simpan slot ini', key=f'save_5_{idx}'):
-                st.session_state[f'close_once_5_{idx}'] = True
+            if a2.button('Simpan slot ini', key=f'save_5_{slot_token}'):
+                st.session_state[f'close_once_5_{slot_token}'] = True
                 st.session_state['_slot_save_requested'] = f'Slot {slot_time} tersimpan.'
                 st.rerun()
-            if a3.button('Hapus slot ini', key=f'ask_rm_5_{idx}', disabled=len(st.session_state['slots_5']) <= 1):
-                st.session_state[f'confirm_rm_5_{idx}'] = True
-            if st.session_state.get(f'confirm_rm_5_{idx}'):
+            if a3.button('Hapus slot ini', key=f'ask_rm_5_{slot_token}', disabled=len(st.session_state['slots_5']) <= 1):
+                st.session_state[f'confirm_rm_5_{slot_token}'] = True
+            if st.session_state.get(f'confirm_rm_5_{slot_token}'):
                 q1, q2 = st.columns(2)
-                if q1.button('Ya, hapus', key=f'yes_rm_5_{idx}'):
+                if q1.button('Ya, hapus', key=f'yes_rm_5_{slot_token}'):
                     st.session_state['slots_5'] = [x for i, x in enumerate(st.session_state['slots_5']) if i != idx]
-                    st.session_state[f'confirm_rm_5_{idx}'] = False
+                    st.session_state[f'confirm_rm_5_{slot_token}'] = False
                     st.rerun()
-                if q2.button('Batal', key=f'no_rm_5_{idx}'):
-                    st.session_state[f'confirm_rm_5_{idx}'] = False
+                if q2.button('Batal', key=f'no_rm_5_{slot_token}'):
+                    st.session_state[f'confirm_rm_5_{slot_token}'] = False
                     st.rerun()
             group_5.append(
                 {
@@ -896,40 +971,46 @@ def main() -> None:
             st.rerun()
     group_6: list[dict] = []
     for idx, slot_time in enumerate(slots_6):
-        slot_note_6 = str(st.session_state.get(f'g6_note_{idx}', '')).strip()
-        close_once = bool(st.session_state.pop(f'close_once_6_{idx}', False))
+        slot_token = _slot_token(slot_time)
+        note_key = f'g6_note_{slot_token}'
+        unsteam_key = f'g6_unsteam_{slot_token}'
+        reason_key = f'g6_unsteam_reason_{slot_token}'
+        _migrate_session_key(note_key, f'g6_note_{idx}')
+        _migrate_session_key(unsteam_key, f'g6_unsteam_{idx}')
+        _migrate_session_key(reason_key, f'g6_unsteam_reason_{idx}')
+        close_once = bool(st.session_state.pop(f'close_once_6_{slot_token}', False) or st.session_state.pop(f'close_once_6_{idx}', False))
         exp_label = f'Jam {slot_time} [saved]' if close_once else f'Jam {slot_time}'
         with st.expander(exp_label, expanded=False):
             slot_note_value = st.radio(
                 f'[{slot_time}] Status slot',
                 SLOT_STATUS_OPTIONS,
                 index=None,
-                key=f'g6_note_{idx}',
+                key=note_key,
                 horizontal=True,
             )
             u1, u2 = st.columns([1, 2])
-            u_status = u1.radio(f'[{slot_time}] Status', OX_OPTIONS, index=None, horizontal=True, key=f'g6_unsteam_{idx}')
-            u_reason = u2.text_input(f'[{slot_time}] Alasan (jika X)', key=f'g6_unsteam_reason_{idx}')
+            u_status = u1.radio(f'[{slot_time}] Status', OX_OPTIONS, index=None, horizontal=True, key=unsteam_key)
+            u_reason = u2.text_input(f'[{slot_time}] Alasan (jika X)', key=reason_key)
             a1, a2, a3 = st.columns(3)
-            if a1.button('Next slot tambah', key=f'next_6_{idx}'):
+            if a1.button('Next slot tambah', key=f'next_6_{slot_token}'):
                 slots = list(st.session_state['slots_6'])
                 slots.insert(idx + 1, _next_available_after(slot_time, slots))
                 st.session_state['slots_6'] = sorted(slots, key=_slot_sort_key)
                 st.rerun()
-            if a2.button('Simpan slot ini', key=f'save_6_{idx}'):
-                st.session_state[f'close_once_6_{idx}'] = True
+            if a2.button('Simpan slot ini', key=f'save_6_{slot_token}'):
+                st.session_state[f'close_once_6_{slot_token}'] = True
                 st.session_state['_slot_save_requested'] = f'Slot {slot_time} tersimpan.'
                 st.rerun()
-            if a3.button('Hapus slot ini', key=f'ask_rm_6_{idx}', disabled=len(st.session_state['slots_6']) <= 1):
-                st.session_state[f'confirm_rm_6_{idx}'] = True
-            if st.session_state.get(f'confirm_rm_6_{idx}'):
+            if a3.button('Hapus slot ini', key=f'ask_rm_6_{slot_token}', disabled=len(st.session_state['slots_6']) <= 1):
+                st.session_state[f'confirm_rm_6_{slot_token}'] = True
+            if st.session_state.get(f'confirm_rm_6_{slot_token}'):
                 q1, q2 = st.columns(2)
-                if q1.button('Ya, hapus', key=f'yes_rm_6_{idx}'):
+                if q1.button('Ya, hapus', key=f'yes_rm_6_{slot_token}'):
                     st.session_state['slots_6'] = [x for i, x in enumerate(st.session_state['slots_6']) if i != idx]
-                    st.session_state[f'confirm_rm_6_{idx}'] = False
+                    st.session_state[f'confirm_rm_6_{slot_token}'] = False
                     st.rerun()
-                if q2.button('Batal', key=f'no_rm_6_{idx}'):
-                    st.session_state[f'confirm_rm_6_{idx}'] = False
+                if q2.button('Batal', key=f'no_rm_6_{slot_token}'):
+                    st.session_state[f'confirm_rm_6_{slot_token}'] = False
                     st.rerun()
             group_6.append(
                 {
@@ -958,45 +1039,49 @@ def main() -> None:
             st.rerun()
     group_7: list[dict] = []
     for idx, slot_time in enumerate(slots_7):
-        slot_note_7 = str(st.session_state.get(f'g7_note_{idx}', '')).strip()
-        close_once = bool(st.session_state.pop(f'close_once_7_{idx}', False))
+        slot_token = _slot_token(slot_time)
+        note_key = f'g7_note_{slot_token}'
+        legacy_note_key = f'g7_note_{idx}'
+        if note_key not in st.session_state and legacy_note_key in st.session_state:
+            st.session_state[note_key] = st.session_state.get(legacy_note_key)
+        close_once = bool(st.session_state.pop(f'close_once_7_{slot_token}', False) or st.session_state.pop(f'close_once_7_{idx}', False))
         exp_label = f'Jam {slot_time} [saved]' if close_once else f'Jam {slot_time}'
         with st.expander(exp_label, expanded=False):
             slot_note_value = st.radio(
                 f'[{slot_time}] Status slot',
                 SLOT_STATUS_OPTIONS,
                 index=None,
-                key=f'g7_note_{idx}',
+                key=note_key,
                 horizontal=True,
             )
             st.caption('Kode cepat alasan/status: 1=proses isi, 2=ubi cilembu, 3=ubi ungu, 4=jagung, 5=steril, 6=kosong, 7=tidak dipakai. Manual input tetap bisa.')
-            hb_rows = _render_hb_rows('g7', idx, [])
+            hb_rows = _render_hb_rows('g7', slot_token, [], legacy_slot_idx=idx)
             a1, a2, a3 = st.columns(3)
-            if a1.button('Next slot tambah', key=f'next_7_{idx}'):
+            if a1.button('Next slot tambah', key=f'next_7_{slot_token}'):
                 slots = list(st.session_state['slots_7'])
                 slots.insert(idx + 1, _next_available_after(slot_time, slots))
                 st.session_state['slots_7'] = sorted(slots, key=_slot_sort_key)
                 st.rerun()
-            if a2.button('Simpan slot ini', key=f'save_7_{idx}'):
-                st.session_state[f'close_once_7_{idx}'] = True
+            if a2.button('Simpan slot ini', key=f'save_7_{slot_token}'):
+                st.session_state[f'close_once_7_{slot_token}'] = True
                 st.session_state['_slot_save_requested'] = f'Slot {slot_time} tersimpan.'
                 st.rerun()
-            if a3.button('Hapus slot ini', key=f'ask_rm_7_{idx}', disabled=len(st.session_state['slots_7']) <= 1):
-                st.session_state[f'confirm_rm_7_{idx}'] = True
-            if st.session_state.get(f'confirm_rm_7_{idx}'):
+            if a3.button('Hapus slot ini', key=f'ask_rm_7_{slot_token}', disabled=len(st.session_state['slots_7']) <= 1):
+                st.session_state[f'confirm_rm_7_{slot_token}'] = True
+            if st.session_state.get(f'confirm_rm_7_{slot_token}'):
                 q1, q2 = st.columns(2)
-                if q1.button('Ya, hapus', key=f'yes_rm_7_{idx}'):
+                if q1.button('Ya, hapus', key=f'yes_rm_7_{slot_token}'):
                     st.session_state['slots_7'] = [x for i, x in enumerate(st.session_state['slots_7']) if i != idx]
-                    st.session_state[f'confirm_rm_7_{idx}'] = False
+                    st.session_state[f'confirm_rm_7_{slot_token}'] = False
                     st.rerun()
-                if q2.button('Batal', key=f'no_rm_7_{idx}'):
-                    st.session_state[f'confirm_rm_7_{idx}'] = False
+                if q2.button('Batal', key=f'no_rm_7_{slot_token}'):
+                    st.session_state[f'confirm_rm_7_{slot_token}'] = False
                     st.rerun()
             group_7.append({'slot_time': slot_time, 'slot_note': str(slot_note_value or '').strip(), 'hb_rows': hb_rows})
 
     slot_saved_msg = st.session_state.pop('_slot_save_requested', '')
     if slot_saved_msg:
-        persist_state_to_disk()
+        st.session_state['_pending_persist'] = True
         st.success(slot_saved_msg)
 
     st.subheader('8. Catatan')
@@ -1061,10 +1146,11 @@ def main() -> None:
         st.session_state['submission_id'] = str(uuid.uuid4())
         st.session_state['telegram_root_message_id'] = None
         clear_pending_submission()
+        st.session_state['_pending_persist'] = True
         st.success('Siklus laporan baru dimulai.')
 
     if save_draft_clicked:
-        persist_state_to_disk()
+        st.session_state['_pending_persist'] = True
         st.success('Draf lokal tersimpan.')
 
     st.markdown('### Pratinjau (pesan Telegram)')
@@ -1082,6 +1168,7 @@ def main() -> None:
             current_rec = get_scope_record(work_date, team_id)
             live_lock = current_rec.get('lock')
             if not isinstance(live_lock, dict) or live_lock.get('token') != st.session_state.get('lock_token'):
+                st.session_state['_submitting'] = False
                 st.error('Kunci tim berubah. Buka Tim/Ambil Alih dulu sebelum kirim.')
                 st.stop()
 
@@ -1106,8 +1193,9 @@ def main() -> None:
             result = process_submission(record)
             if result.get('ok'):
                 clear_pending_submission()
-                st.session_state['telegram_root_message_id'] = record.get('telegram_root_message_id')
+                st.session_state['telegram_root_message_id'] = result.get('telegram_root_message_id') or record.get('telegram_root_message_id')
                 st.session_state['submission_id'] = str(uuid.uuid4())
+                st.session_state['_pending_persist'] = True
                 st.success('Submit selesai: Telegram + backup diproses.')
                 if result.get('warning'):
                     st.warning(result['warning'])
@@ -1122,7 +1210,8 @@ def main() -> None:
     st.caption('Env Sheets (optional/non-blocking): SHEETS_WEBHOOK_URL')
     st.caption(f'Timezone system: {TIMEZONE}')
 
-    persist_state_to_disk()
+    if st.session_state.pop('_pending_persist', False):
+        persist_state_to_disk()
 
 
 if __name__ == '__main__':
