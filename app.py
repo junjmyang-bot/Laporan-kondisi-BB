@@ -744,7 +744,7 @@ def main() -> None:
                     st.rerun()
             if st.button('Simpan slot ini', key=f'save_3_{idx}'):
                 st.session_state[f'close_once_3_{idx}'] = True
-                persist_state_to_disk()
+                st.session_state['_slot_save_requested'] = f'Slot {slot_time} tersimpan.'
                 st.rerun()
             group_3.append(
                 {
@@ -805,7 +805,7 @@ def main() -> None:
                     st.rerun()
             if st.button('Simpan slot ini', key=f'save_4_{idx}'):
                 st.session_state[f'close_once_4_{idx}'] = True
-                persist_state_to_disk()
+                st.session_state['_slot_save_requested'] = f'Slot {slot_time} tersimpan.'
                 st.rerun()
             group_4.append({'slot_time': slot_time, 'slot_note': str(slot_note_value or '').strip(), 'bb_masuk': bb_rows})
 
@@ -860,7 +860,7 @@ def main() -> None:
                     st.rerun()
             if st.button('Simpan slot ini', key=f'save_5_{idx}'):
                 st.session_state[f'close_once_5_{idx}'] = True
-                persist_state_to_disk()
+                st.session_state['_slot_save_requested'] = f'Slot {slot_time} tersimpan.'
                 st.rerun()
             group_5.append(
                 {
@@ -922,7 +922,7 @@ def main() -> None:
                     st.rerun()
             if st.button('Simpan slot ini', key=f'save_6_{idx}'):
                 st.session_state[f'close_once_6_{idx}'] = True
-                persist_state_to_disk()
+                st.session_state['_slot_save_requested'] = f'Slot {slot_time} tersimpan.'
                 st.rerun()
             group_6.append(
                 {
@@ -982,9 +982,14 @@ def main() -> None:
                     st.rerun()
             if st.button('Simpan slot ini', key=f'save_7_{idx}'):
                 st.session_state[f'close_once_7_{idx}'] = True
-                persist_state_to_disk()
+                st.session_state['_slot_save_requested'] = f'Slot {slot_time} tersimpan.'
                 st.rerun()
             group_7.append({'slot_time': slot_time, 'slot_note': str(slot_note_value or '').strip(), 'hb_rows': hb_rows})
+
+    slot_saved_msg = st.session_state.pop('_slot_save_requested', '')
+    if slot_saved_msg:
+        persist_state_to_disk()
+        st.success(slot_saved_msg)
 
     st.subheader('8. Catatan')
     st.caption('Opsional. Boleh kosong.')
