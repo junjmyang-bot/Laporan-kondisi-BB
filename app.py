@@ -161,8 +161,26 @@ def _normalize_initial_slots_once() -> None:
         st.rerun()
 
 
+def _is_persistable_dynamic_key(key: str) -> bool:
+    if not key.startswith(STATE_PREFIX_KEYS):
+        return False
+    transient_tokens = (
+        '_add',
+        '_remove',
+        'ask_rm_',
+        'yes_rm_',
+        'no_rm_',
+        'next_',
+        'confirm_rm_',
+    )
+    return not any(token in key for token in transient_tokens)
+
+
 def _render_bb_rows(prefix: str, slot_idx: int, seed_rows: list[dict]) -> list[dict]:
     count_key = f'{prefix}_bb_count_{slot_idx}'
+    for transient_key in (f'{count_key}_add', f'{count_key}_remove'):
+        if transient_key in st.session_state:
+            del st.session_state[transient_key]
     seed_count = len(seed_rows) if isinstance(seed_rows, list) and seed_rows else 1
     if count_key not in st.session_state:
         st.session_state[count_key] = max(1, min(10, seed_count))
@@ -500,7 +518,7 @@ def build_persist_payload() -> dict:
     ]
     out = {k: st.session_state.get(k) for k in static_keys if k in st.session_state}
     for key, val in st.session_state.items():
-        if key.startswith(STATE_PREFIX_KEYS):
+        if _is_persistable_dynamic_key(key):
             out[key] = val
 
     for key in ('start_time_3', 'start_time_4', 'start_time_5', 'start_time_6', 'start_time_7'):
@@ -541,7 +559,7 @@ def sync_scope_if_needed(work_date: str, team_id: str) -> None:
                 st.session_state[key] = val.strftime('%H:%M')
             else:
                 st.session_state[key] = _parse_hhmm_text(str(val)) or round_to_half_hour(now_local()).strftime('%H:%M')
-        else:
+        elif _is_persistable_dynamic_key(key):
             st.session_state[key] = val
 
     if not scoped:
@@ -641,7 +659,7 @@ def main() -> None:
         st.stop()
 
     sync_scope_if_needed(work_date, team_id)
-    _normalize_initial_slots_once()
+    # Do not auto-truncate persisted slots; keep user-entered history intact.
     refresh_scope_lock(work_date, team_id)
     if st.session_state.get('_scope_conflict'):
         st.warning('Data lokal berbeda versi terbaru. Muat ulang scope agar sinkron.')
