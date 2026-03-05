@@ -717,7 +717,8 @@ def main() -> None:
     group_3: list[dict] = []
     for idx, slot_time in enumerate(slots_3):
         close_once = bool(st.session_state.pop(f'close_once_3_{idx}', False))
-        with st.expander(f'Jam {slot_time}', expanded=False if close_once else False):
+        exp_label = f'Jam {slot_time} [saved]' if close_once else f'Jam {slot_time}'
+        with st.expander(exp_label, expanded=False):
             slot_note_value = st.radio(
                 f'[{slot_time}] Status slot',
                 SLOT_STATUS_OPTIONS,
@@ -779,7 +780,8 @@ def main() -> None:
     for idx, slot_time in enumerate(slots_4):
         slot_note_4 = str(st.session_state.get(f'g4_note_{idx}', '')).strip()
         close_once = bool(st.session_state.pop(f'close_once_4_{idx}', False))
-        with st.expander(f'Jam {slot_time}', expanded=False if close_once else False):
+        exp_label = f'Jam {slot_time} [saved]' if close_once else f'Jam {slot_time}'
+        with st.expander(exp_label, expanded=False):
             slot_note_value = st.radio(
                 f'[{slot_time}] Status slot',
                 SLOT_STATUS_OPTIONS,
@@ -832,7 +834,8 @@ def main() -> None:
     for idx, slot_time in enumerate(slots_5):
         slot_note_5 = str(st.session_state.get(f'g5_note_{idx}', '')).strip()
         close_once = bool(st.session_state.pop(f'close_once_5_{idx}', False))
-        with st.expander(f'Jam {slot_time}', expanded=False if close_once else False):
+        exp_label = f'Jam {slot_time} [saved]' if close_once else f'Jam {slot_time}'
+        with st.expander(exp_label, expanded=False):
             slot_note_value = st.radio(
                 f'[{slot_time}] Status slot',
                 SLOT_STATUS_OPTIONS,
@@ -895,7 +898,8 @@ def main() -> None:
     for idx, slot_time in enumerate(slots_6):
         slot_note_6 = str(st.session_state.get(f'g6_note_{idx}', '')).strip()
         close_once = bool(st.session_state.pop(f'close_once_6_{idx}', False))
-        with st.expander(f'Jam {slot_time}', expanded=False if close_once else False):
+        exp_label = f'Jam {slot_time} [saved]' if close_once else f'Jam {slot_time}'
+        with st.expander(exp_label, expanded=False):
             slot_note_value = st.radio(
                 f'[{slot_time}] Status slot',
                 SLOT_STATUS_OPTIONS,
@@ -956,7 +960,8 @@ def main() -> None:
     for idx, slot_time in enumerate(slots_7):
         slot_note_7 = str(st.session_state.get(f'g7_note_{idx}', '')).strip()
         close_once = bool(st.session_state.pop(f'close_once_7_{idx}', False))
-        with st.expander(f'Jam {slot_time}', expanded=False if close_once else False):
+        exp_label = f'Jam {slot_time} [saved]' if close_once else f'Jam {slot_time}'
+        with st.expander(exp_label, expanded=False):
             slot_note_value = st.radio(
                 f'[{slot_time}] Status slot',
                 SLOT_STATUS_OPTIONS,
