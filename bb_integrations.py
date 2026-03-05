@@ -124,6 +124,52 @@ def _send_or_edit_telegram(parts: list[str], root_message_id: int | None) -> tup
     return True, 'Telegram send/edit selesai.', root_id
 
 
+def _write_pending_atomically(record: dict) -> None:
+    tmp = PENDING_PATH.with_suffix('.tmp')
+    tmp.write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding='utf-8')
+    os.replace(tmp, PENDING_PATH)
+
+
+def _send_or_edit_telegram_progress(
+    parts: list[str], root_message_id: int | None, parts_sent: int
+) -> tuple[bool, str, int | None, int]:
+    if not parts:
+        return False, 'Konten Telegram kosong.', root_message_id, parts_sent
+
+    sent = max(0, int(parts_sent or 0))
+    root_id = root_message_id
+
+    if sent < 1:
+        first_part = parts[0]
+        if root_id:
+            ok_edit, msg_edit = edit_existing_message(root_id, first_part)
+            if not ok_edit:
+                m = msg_edit.lower()
+                if ('message to edit not found' in m) or ("can't be edited" in m) or ("message can't be edited" in m):
+                    ok_new, msg_new, new_root = send_new_message(first_part)
+                    if not ok_new:
+                        return False, msg_new, root_id, sent
+                    root_id = new_root
+                else:
+                    return False, msg_edit, root_id, sent
+        else:
+            ok_new, msg_new, new_root = send_new_message(first_part)
+            if not ok_new:
+                return False, msg_new, root_id, sent
+            root_id = new_root
+        sent = 1
+
+    for idx in range(sent, len(parts)):
+        ok_extra, msg_extra, _ = send_new_message(parts[idx])
+        if not ok_extra:
+            return False, msg_extra, root_id, sent
+        sent += 1
+
+    if root_id:
+        send_update_reply(root_id)
+    return True, 'Telegram send/edit selesai.', root_id, sent
+
+
 def append_sheets_rows(rows: list[dict], idempotency_key: str) -> dict:
     url = os.getenv('SHEETS_WEBHOOK_URL', '').strip()
     if not rows:
@@ -158,7 +204,7 @@ def load_pending_submission() -> dict | None:
 
 
 def save_pending_submission(record: dict) -> None:
-    PENDING_PATH.write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding='utf-8')
+    _write_pending_atomically(record)
 
 
 def clear_pending_submission() -> None:
@@ -169,18 +215,22 @@ def clear_pending_submission() -> None:
 def process_submission(record: dict) -> dict:
     record['attempt_count'] = int(record.get('attempt_count', 0)) + 1
     record['last_attempt_at'] = datetime.now().isoformat()
+    parts = record.get('telegram_parts', [])
+    sent_count = int(record.get('telegram_parts_sent', 0) or 0)
 
     if not record.get('telegram_sent', False):
-        ok, msg, new_root = _send_or_edit_telegram(
-            parts=record.get('telegram_parts', []),
+        ok, msg, new_root, new_sent_count = _send_or_edit_telegram_progress(
+            parts=parts,
             root_message_id=record.get('telegram_root_message_id'),
+            parts_sent=sent_count,
         )
+        record['telegram_root_message_id'] = new_root
+        record['telegram_parts_sent'] = int(new_sent_count)
         if not ok:
             record['last_error'] = msg
             record['last_error_detail'] = ''
             return {'ok': False, 'warning': None, 'message': msg}
-        record['telegram_sent'] = True
-        record['telegram_root_message_id'] = new_root
+        record['telegram_sent'] = int(new_sent_count) >= len(parts)
 
     sheets = append_sheets_rows(record.get('sheets_rows', []), record.get('idempotency_key', ''))
     if not sheets.get('ok'):

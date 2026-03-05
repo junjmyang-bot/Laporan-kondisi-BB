@@ -45,11 +45,10 @@ TEAM_PASSWORDS_ERROR: str | None = None
 
 def _load_team_passwords() -> dict:
     global TEAM_PASSWORDS_ERROR
-    defaults = {'KUPAS-1': 'abcd', 'KUPAS-2': '1234', 'KUPAS-3': 'ab12'}
     raw = os.getenv('TEAM_PASSWORDS', '').strip()
     if not raw:
-        TEAM_PASSWORDS_ERROR = 'TEAM_PASSWORDS belum diatur. Memakai PIN default sementara.'
-        return defaults
+        TEAM_PASSWORDS_ERROR = 'TEAM_PASSWORDS belum diatur. Set dulu di secrets/env.'
+        return {}
     try:
         parsed = json.loads(raw)
         if isinstance(parsed, dict) and parsed:
@@ -57,8 +56,8 @@ def _load_team_passwords() -> dict:
             return parsed
     except Exception:
         pass
-    TEAM_PASSWORDS_ERROR = 'TEAM_PASSWORDS tidak valid. Memakai PIN default sementara.'
-    return defaults
+    TEAM_PASSWORDS_ERROR = 'TEAM_PASSWORDS tidak valid. Format harus JSON object.'
+    return {}
 
 
 TEAM_PASSWORDS = _load_team_passwords()
@@ -580,6 +579,9 @@ def main() -> None:
     st.caption('Durasi lapor: awal masuk + setiap masukkan BB + setiap 30 menit')
     if TEAM_PASSWORDS_ERROR:
         st.warning(TEAM_PASSWORDS_ERROR)
+    if not TEAM_PASSWORDS:
+        st.error('Aplikasi dikunci: TEAM_PASSWORDS wajib diset sebelum dipakai.')
+        st.stop()
 
     team_choices = list(TEAM_PASSWORDS.keys())
     saved_team = st.session_state.get('team_id', 'KUPAS-1')
@@ -649,7 +651,7 @@ def main() -> None:
 
     pending = load_pending_submission()
     if pending:
-        st.warning('Ada pending submission. Gunakan Retry Pending setelah cek koneksi.')
+        st.warning("Ada pending submission. Setelah koneksi normal, klik 'Kirim ke Telegram' lagi.")
         st.caption(
             f"Pending key={pending.get('idempotency_key','-')} | "
             f"attempt={pending.get('attempt_count', 0)} | "
@@ -972,7 +974,10 @@ def main() -> None:
         'keterangan': keterangan,
     }
 
-    errors = validate_payload(payload)
+    try:
+        errors = validate_payload(payload)
+    except Exception as e:
+        errors = [f'Validation error: {e}']
     if errors:
         st.warning(f'Perlu perbaikan sebelum kirim: {len(errors)} poin.')
 
@@ -1030,6 +1035,7 @@ def main() -> None:
                 'payload': clone_payload(payload),
                 'telegram_parts': telegram_parts,
                 'telegram_root_message_id': st.session_state.get('telegram_root_message_id'),
+                'telegram_parts_sent': 0,
                 'sheets_rows': sheets_rows,
                 'telegram_sent': False,
                 'attempt_count': 0,
