@@ -69,10 +69,12 @@ TEAM_LABELS = {
 SLOT_STATUS_OPTIONS = ['Mulai kerja baru', 'Lanjut kerja', 'Selesai di sini']
 ALASAN_CODE_MAP = {
     '1': 'proses isi',
-    '2': 'ubi',
-    '3': 'steril',
-    '4': 'kosong',
-    '5': 'tidak dipakai',
+    '2': 'ubi cilembu',
+    '3': 'ubi ungu',
+    '4': 'jagung',
+    '5': 'steril',
+    '6': 'kosong',
+    '7': 'tidak dipakai',
 }
 
 
@@ -959,7 +961,7 @@ def main() -> None:
                 key=f'g7_note_{idx}',
                 horizontal=True,
             )
-            st.caption('Kode cepat alasan/status: 1=proses isi, 2=ubi, 3=steril, 4=kosong, 5=tidak dipakai')
+            st.caption('Kode cepat alasan/status: 1=proses isi, 2=ubi cilembu, 3=ubi ungu, 4=jagung, 5=steril, 6=kosong, 7=tidak dipakai. Manual input tetap bisa.')
             hb_rows = _render_hb_rows('g7', idx, [])
             a1, a2 = st.columns(2)
             if a1.button('Next slot tambah', key=f'next_7_{idx}'):
