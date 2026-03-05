@@ -66,6 +66,14 @@ TEAM_LABELS = {
     'KUPAS-2': 'Kupas team Elok',
     'KUPAS-3': 'Kupas Extra',
 }
+SLOT_STATUS_OPTIONS = ['Mulai kerja baru', 'Lanjut kerja', 'Selesai di sini']
+ALASAN_CODE_MAP = {
+    '1': 'proses isi',
+    '2': 'ubi',
+    '3': 'steril',
+    '4': 'kosong',
+    '5': 'tidak dipakai',
+}
 
 
 def now_iso() -> str:
@@ -178,9 +186,6 @@ def _is_persistable_dynamic_key(key: str) -> bool:
 
 def _render_bb_rows(prefix: str, slot_idx: int, seed_rows: list[dict]) -> list[dict]:
     count_key = f'{prefix}_bb_count_{slot_idx}'
-    for transient_key in (f'{count_key}_add', f'{count_key}_remove'):
-        if transient_key in st.session_state:
-            del st.session_state[transient_key]
     seed_count = len(seed_rows) if isinstance(seed_rows, list) and seed_rows else 1
     if count_key not in st.session_state:
         st.session_state[count_key] = max(1, min(10, seed_count))
@@ -249,7 +254,8 @@ def _render_hb_rows(prefix: str, slot_idx: int, seed_rows: list[dict]) -> list[d
         c0, c1, c2, c3 = st.columns([1.1, 1, 2.2, 1])
         c0.markdown(hb_name)
         dipakai = c1.radio('Dipakai', OX_OPTIONS, index=None, horizontal=True, key=k_d, label_visibility='collapsed')
-        alasan = c2.text_input('Alasan / status', key=k_a, label_visibility='collapsed')
+        alasan_raw = c2.text_input('Alasan / status', key=k_a, label_visibility='collapsed')
+        alasan = ALASAN_CODE_MAP.get(str(alasan_raw).strip().lower(), str(alasan_raw).strip())
         gas = c3.radio('Gas', OX_OPTIONS, index=None, horizontal=True, key=k_g, label_visibility='collapsed')
         out.append(
             {
@@ -705,12 +711,10 @@ def main() -> None:
             st.rerun()
     group_3: list[dict] = []
     for idx, slot_time in enumerate(slots_3):
-        slot_note_3 = str(st.session_state.get(f'g3_note_{idx}', '')).strip()
-        extra_3 = f' [{slot_note_3}]' if slot_note_3 else ''
-        with st.expander(f'Jam {slot_time}{extra_3}', expanded=(idx == 0)):
+        with st.expander(f'Jam {slot_time}', expanded=(idx == 0)):
             slot_note_value = st.radio(
                 f'[{slot_time}] Status slot',
-                ['Selesai di sini', 'Mulai kerja baru', 'Lanjut kerja'],
+                SLOT_STATUS_OPTIONS,
                 index=None,
                 key=f'g3_note_{idx}',
                 horizontal=True,
@@ -735,6 +739,8 @@ def main() -> None:
                 if q2.button('Batal', key=f'no_rm_3_{idx}'):
                     st.session_state[f'confirm_rm_3_{idx}'] = False
                     st.rerun()
+            if st.button('Simpan slot ini', key=f'save_3_{idx}'):
+                st.success(f'Slot {slot_time} tersimpan.')
             group_3.append(
                 {
                     'slot_time': slot_time,
@@ -764,11 +770,10 @@ def main() -> None:
     group_4: list[dict] = []
     for idx, slot_time in enumerate(slots_4):
         slot_note_4 = str(st.session_state.get(f'g4_note_{idx}', '')).strip()
-        extra_4 = f' [{slot_note_4}]' if slot_note_4 else ''
-        with st.expander(f'Jam {slot_time}{extra_4}', expanded=(idx == 0)):
+        with st.expander(f'Jam {slot_time}', expanded=(idx == 0)):
             slot_note_value = st.radio(
                 f'[{slot_time}] Status slot',
-                ['Selesai di sini', 'Mulai kerja baru', 'Lanjut kerja'],
+                SLOT_STATUS_OPTIONS,
                 index=None,
                 key=f'g4_note_{idx}',
                 horizontal=True,
@@ -792,6 +797,8 @@ def main() -> None:
                 if q2.button('Batal', key=f'no_rm_4_{idx}'):
                     st.session_state[f'confirm_rm_4_{idx}'] = False
                     st.rerun()
+            if st.button('Simpan slot ini', key=f'save_4_{idx}'):
+                st.success(f'Slot {slot_time} tersimpan.')
             group_4.append({'slot_time': slot_time, 'slot_note': str(slot_note_value or '').strip(), 'bb_masuk': bb_rows})
 
     st.subheader('5. Status keranjang ubi sudah steam')
@@ -813,11 +820,10 @@ def main() -> None:
     group_5: list[dict] = []
     for idx, slot_time in enumerate(slots_5):
         slot_note_5 = str(st.session_state.get(f'g5_note_{idx}', '')).strip()
-        extra_5 = f' [{slot_note_5}]' if slot_note_5 else ''
-        with st.expander(f'Jam {slot_time}{extra_5}', expanded=(idx == 0)):
+        with st.expander(f'Jam {slot_time}', expanded=(idx == 0)):
             slot_note_value = st.radio(
                 f'[{slot_time}] Status slot',
-                ['Selesai di sini', 'Mulai kerja baru', 'Lanjut kerja'],
+                SLOT_STATUS_OPTIONS,
                 index=None,
                 key=f'g5_note_{idx}',
                 horizontal=True,
@@ -843,6 +849,8 @@ def main() -> None:
                 if q2.button('Batal', key=f'no_rm_5_{idx}'):
                     st.session_state[f'confirm_rm_5_{idx}'] = False
                     st.rerun()
+            if st.button('Simpan slot ini', key=f'save_5_{idx}'):
+                st.success(f'Slot {slot_time} tersimpan.')
             group_5.append(
                 {
                     'slot_time': slot_time,
@@ -872,11 +880,10 @@ def main() -> None:
     group_6: list[dict] = []
     for idx, slot_time in enumerate(slots_6):
         slot_note_6 = str(st.session_state.get(f'g6_note_{idx}', '')).strip()
-        extra_6 = f' [{slot_note_6}]' if slot_note_6 else ''
-        with st.expander(f'Jam {slot_time}{extra_6}', expanded=(idx == 0)):
+        with st.expander(f'Jam {slot_time}', expanded=(idx == 0)):
             slot_note_value = st.radio(
                 f'[{slot_time}] Status slot',
-                ['Selesai di sini', 'Mulai kerja baru', 'Lanjut kerja'],
+                SLOT_STATUS_OPTIONS,
                 index=None,
                 key=f'g6_note_{idx}',
                 horizontal=True,
@@ -901,6 +908,8 @@ def main() -> None:
                 if q2.button('Batal', key=f'no_rm_6_{idx}'):
                     st.session_state[f'confirm_rm_6_{idx}'] = False
                     st.rerun()
+            if st.button('Simpan slot ini', key=f'save_6_{idx}'):
+                st.success(f'Slot {slot_time} tersimpan.')
             group_6.append(
                 {
                     'slot_time': slot_time,
@@ -929,15 +938,15 @@ def main() -> None:
     group_7: list[dict] = []
     for idx, slot_time in enumerate(slots_7):
         slot_note_7 = str(st.session_state.get(f'g7_note_{idx}', '')).strip()
-        extra_7 = f' [{slot_note_7}]' if slot_note_7 else ''
-        with st.expander(f'Jam {slot_time}{extra_7}', expanded=(idx == 0)):
+        with st.expander(f'Jam {slot_time}', expanded=(idx == 0)):
             slot_note_value = st.radio(
                 f'[{slot_time}] Status slot',
-                ['Selesai di sini', 'Mulai kerja baru', 'Lanjut kerja'],
+                SLOT_STATUS_OPTIONS,
                 index=None,
                 key=f'g7_note_{idx}',
                 horizontal=True,
             )
+            st.caption('Kode cepat alasan/status: 1=proses isi, 2=ubi, 3=steril, 4=kosong, 5=tidak dipakai')
             hb_rows = _render_hb_rows('g7', idx, [])
             a1, a2 = st.columns(2)
             if a1.button('Next slot tambah', key=f'next_7_{idx}'):
@@ -956,9 +965,12 @@ def main() -> None:
                 if q2.button('Batal', key=f'no_rm_7_{idx}'):
                     st.session_state[f'confirm_rm_7_{idx}'] = False
                     st.rerun()
+            if st.button('Simpan slot ini', key=f'save_7_{idx}'):
+                st.success(f'Slot {slot_time} tersimpan.')
             group_7.append({'slot_time': slot_time, 'slot_note': str(slot_note_value or '').strip(), 'hb_rows': hb_rows})
 
     st.subheader('8. Catatan')
+    st.caption('Opsional. Boleh kosong.')
     notes = st.text_area(
         'Memo catatan operator',
         key='notes',
@@ -966,6 +978,7 @@ def main() -> None:
         height=180,
     )
     st.subheader('9. Keterangan')
+    st.caption('Opsional. Boleh kosong.')
     keterangan = st.text_area(
         'Keterangan masalah dari list di atas',
         key='keterangan',
