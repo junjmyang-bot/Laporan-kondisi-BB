@@ -9,6 +9,7 @@ from datetime import date, datetime, time
 from pathlib import Path
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 from bb_formatters import build_sheets_rows, build_telegram_text, split_telegram_parts
 from bb_integrations import (
@@ -208,6 +209,31 @@ def _persist_signature(payload: dict) -> str:
         return json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str)
     except Exception:
         return ''
+
+
+def _install_blur_commit_hook() -> None:
+    # Force currently focused input to blur before button clicks,
+    # so typed value is committed before Streamlit rerun actions.
+    components.html(
+        """
+        <script>
+        const doc = window.parent && window.parent.document ? window.parent.document : document;
+        if (!doc.__bbBlurCommitHookInstalled) {
+          doc.__bbBlurCommitHookInstalled = true;
+          doc.addEventListener('pointerdown', function (e) {
+            const active = doc.activeElement;
+            if (!active) return;
+            const tag = (active.tagName || '').toUpperCase();
+            if ((tag === 'INPUT' || tag === 'TEXTAREA') && active !== e.target) {
+              try { active.blur(); } catch (err) {}
+            }
+          }, true);
+        }
+        </script>
+        """,
+        height=0,
+        width=0,
+    )
 
 
 def _legacy_slot_indices(group_no: int) -> list[int]:
@@ -738,6 +764,7 @@ def sync_scope_if_needed(work_date: str, team_id: str) -> None:
 def main() -> None:
     st.set_page_config(page_title='Laporan Kondisi BB', layout='wide')
     init_state()
+    _install_blur_commit_hook()
     st.markdown(
         """
         <style>
