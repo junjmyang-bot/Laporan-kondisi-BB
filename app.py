@@ -199,6 +199,78 @@ def _is_persistable_dynamic_key(key: str) -> bool:
     return not any(token in key for token in transient_tokens)
 
 
+def _persist_signature(payload: dict) -> str:
+    try:
+        return json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str)
+    except Exception:
+        return ''
+
+
+def _legacy_slot_indices(group_no: int) -> list[int]:
+    out: set[int] = set()
+    for key in st.session_state.keys():
+        parts = str(key).split('_')
+        if group_no == 3:
+            if key.startswith('g3_') and len(parts) == 3 and parts[2].isdigit():
+                idx = int(parts[2])
+                if 0 <= idx <= 47:
+                    out.add(idx)
+        elif group_no == 4:
+            if key.startswith('g4_note_') and len(parts) == 3 and parts[2].isdigit():
+                idx = int(parts[2])
+                if 0 <= idx <= 47:
+                    out.add(idx)
+            elif key.startswith('g4_bb_count_') and len(parts) == 4 and parts[3].isdigit():
+                idx = int(parts[3])
+                if 0 <= idx <= 47:
+                    out.add(idx)
+            elif key.startswith('g4_bb_') and len(parts) >= 5 and parts[3].isdigit():
+                idx = int(parts[3])
+                if 0 <= idx <= 47:
+                    out.add(idx)
+        elif group_no == 5:
+            if key.startswith('g5_') and len(parts) == 3 and parts[2].isdigit():
+                idx = int(parts[2])
+                if 0 <= idx <= 47:
+                    out.add(idx)
+        elif group_no == 6:
+            if key.startswith('g6_') and len(parts) == 3 and parts[2].isdigit():
+                idx = int(parts[2])
+                if 0 <= idx <= 47:
+                    out.add(idx)
+        elif group_no == 7:
+            if key.startswith('g7_note_') and len(parts) == 3 and parts[2].isdigit():
+                idx = int(parts[2])
+                if 0 <= idx <= 47:
+                    out.add(idx)
+            elif key.startswith('g7_hb_') and len(parts) >= 5 and parts[3].isdigit():
+                idx = int(parts[3])
+                if 0 <= idx <= 47:
+                    out.add(idx)
+    return sorted(out)
+
+
+def _maybe_restore_legacy_slots(slots_key: str, start_key: str, group_no: int) -> None:
+    current = st.session_state.get(slots_key)
+    if not isinstance(current, list):
+        return
+    current_clean = [str(x) for x in current if _parse_hhmm_text(str(x))]
+    if len(current_clean) > 1:
+        return
+
+    legacy_idxs = _legacy_slot_indices(group_no)
+    if not legacy_idxs:
+        return
+    needed = max(legacy_idxs) + 1
+    if needed <= len(current_clean):
+        return
+
+    start_text = _parse_hhmm_text(str(st.session_state.get(start_key, ''))) or round_to_half_hour(now_local()).strftime('%H:%M')
+    inferred = slot_times(_parse_time_hhmm(start_text), needed)
+    if inferred:
+        st.session_state[slots_key] = inferred
+
+
 def _render_bb_rows(prefix: str, slot_token: str, seed_rows: list[dict], legacy_slot_idx: int | None = None) -> list[dict]:
     count_key = f'{prefix}_bb_count_{slot_token}'
     old_count_key = f'{prefix}_bb_count_{legacy_slot_idx}' if legacy_slot_idx is not None else ''
@@ -315,6 +387,26 @@ def _scope_key(work_date: str, team_id: str) -> str:
     return f'{work_date}::{team_id}'
 
 
+def _coerce_scope_record(existing: object) -> dict:
+    if isinstance(existing, dict) and 'data' in existing:
+        data = existing.get('data', {})
+        history = existing.get('lock_history', [])
+        try:
+            version = int(existing.get('version', 0))
+        except Exception:
+            version = 0
+        return {
+            'data': data if isinstance(data, dict) else {},
+            'version': version,
+            'lock': existing.get('lock'),
+            'lock_history': history if isinstance(history, list) else [],
+        }
+    if isinstance(existing, dict):
+        # Legacy storage format: raw payload dict without wrapper.
+        return {'data': existing, 'version': 0, 'lock': None, 'lock_history': []}
+    return {'data': {}, 'version': 0, 'lock': None, 'lock_history': []}
+
+
 def _write_state_atomically(raw: dict) -> None:
     tmp_path = PERSIST_PATH.with_suffix('.tmp')
     tmp_path.write_text(json.dumps(raw, ensure_ascii=False, indent=2), encoding='utf-8')
@@ -335,16 +427,7 @@ def get_scope_record(work_date: str, team_id: str) -> dict:
     raw = load_persisted_state()
     key = _scope_key(work_date, team_id)
     scoped = raw.get('scopes', {}).get(key, {})
-    if not isinstance(scoped, dict):
-        return {'data': {}, 'version': 0, 'lock': None, 'lock_history': []}
-    if 'data' in scoped:
-        return {
-            'data': scoped.get('data', {}) if isinstance(scoped.get('data'), dict) else {},
-            'version': int(scoped.get('version', 0)),
-            'lock': scoped.get('lock'),
-            'lock_history': scoped.get('lock_history', []),
-        }
-    return {'data': scoped, 'version': 0, 'lock': None, 'lock_history': []}
+    return _coerce_scope_record(scoped)
 
 
 def load_scoped_state(work_date: str, team_id: str) -> dict:
@@ -359,15 +442,10 @@ def save_scoped_state(work_date: str, team_id: str, payload: dict, expected_vers
         if not isinstance(scopes, dict):
             scopes = {}
 
-        existing = scopes.get(key, {})
-        if isinstance(existing, dict) and 'data' in existing:
-            current_version = int(existing.get('version', 0))
-            current_lock = existing.get('lock')
-            lock_history = existing.get('lock_history', [])
-        else:
-            current_version = 0
-            current_lock = None
-            lock_history = []
+        rec = _coerce_scope_record(scopes.get(key, {}))
+        current_version = int(rec.get('version', 0))
+        current_lock = rec.get('lock')
+        lock_history = rec.get('lock_history', [])
 
         if expected_version is not None and current_version != expected_version:
             return False, current_version
@@ -421,8 +499,7 @@ def acquire_scope_lock(work_date: str, team_id: str, operator: str, force: bool 
         scopes = raw.get('scopes')
         if not isinstance(scopes, dict):
             scopes = {}
-        existing = scopes.get(key, {})
-        rec = existing if isinstance(existing, dict) and 'data' in existing else {'data': {}, 'version': 0, 'lock': None, 'lock_history': []}
+        rec = _coerce_scope_record(scopes.get(key, {}))
         lock = rec.get('lock')
         active = _lock_is_active(lock)
         token = st.session_state.get('lock_token')
@@ -547,6 +624,8 @@ def init_state() -> None:
         st.session_state['keterangan'] = ''
     if '_slots_normalized_once' not in st.session_state:
         st.session_state['_slots_normalized_once'] = False
+    if '_last_persist_sig' not in st.session_state:
+        st.session_state['_last_persist_sig'] = ''
 
 
 def build_persist_payload() -> dict:
@@ -592,10 +671,12 @@ def persist_state_to_disk() -> None:
         return
     expected = st.session_state.get('scope_version')
     payload = build_persist_payload()
+    payload_sig = _persist_signature(payload)
     ok, new_version = save_scoped_state(work_date, team_id, payload, expected_version=expected)
     if ok:
         st.session_state['scope_version'] = new_version
         st.session_state['_scope_conflict'] = False
+        st.session_state['_last_persist_sig'] = payload_sig
     else:
         # If version drift happens while this session still owns the active lock,
         # do a last-write-wins retry so user edits are not silently dropped.
@@ -604,6 +685,7 @@ def persist_state_to_disk() -> None:
             if retry_ok:
                 st.session_state['scope_version'] = retry_version
                 st.session_state['_scope_conflict'] = False
+                st.session_state['_last_persist_sig'] = payload_sig
                 return
         st.session_state['_scope_conflict'] = True
 
@@ -635,10 +717,17 @@ def sync_scope_if_needed(work_date: str, team_id: str) -> None:
         st.session_state['submission_id'] = None
         st.session_state['telegram_root_message_id'] = None
 
+    _maybe_restore_legacy_slots('slots_3', 'start_time_3', 3)
+    _maybe_restore_legacy_slots('slots_4', 'start_time_4', 4)
+    _maybe_restore_legacy_slots('slots_5', 'start_time_5', 5)
+    _maybe_restore_legacy_slots('slots_6', 'start_time_6', 6)
+    _maybe_restore_legacy_slots('slots_7', 'start_time_7', 7)
+
     st.session_state['work_date'] = work_date
     st.session_state['team_id'] = team_id
     st.session_state['scope_version'] = int(rec.get('version', 0))
     st.session_state['_loaded_scope'] = scope
+    st.session_state['_last_persist_sig'] = _persist_signature(build_persist_payload())
     st.rerun()
 
 
@@ -1210,8 +1299,15 @@ def main() -> None:
     st.caption('Env Sheets (optional/non-blocking): SHEETS_WEBHOOK_URL')
     st.caption(f'Timezone system: {TIMEZONE}')
 
-    if st.session_state.pop('_pending_persist', False):
+    pending_persist = bool(st.session_state.pop('_pending_persist', False))
+    if pending_persist:
         persist_state_to_disk()
+    else:
+        # Autosave when form data changed, so partial updates are not lost between 30-minute entries.
+        if _session_owns_scope_lock(work_date, team_id) and not st.session_state.get('_scope_conflict'):
+            current_sig = _persist_signature(build_persist_payload())
+            if current_sig and current_sig != st.session_state.get('_last_persist_sig', ''):
+                persist_state_to_disk()
 
 
 if __name__ == '__main__':
