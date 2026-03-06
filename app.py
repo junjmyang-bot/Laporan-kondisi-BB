@@ -149,8 +149,12 @@ def _migrate_session_key(new_key: str, old_key: str) -> None:
         st.session_state[new_key] = st.session_state.get(old_key)
 
 
+def _request_persist() -> None:
+    st.session_state['_pending_persist'] = True
+
+
 def _render_start_time_input(label: str, key: str) -> str:
-    raw = st.text_input(label, key=key, placeholder='HH:MM')
+    raw = st.text_input(label, key=key, placeholder='HH:MM', on_change=_request_persist)
     parsed = _parse_hhmm_text(str(raw))
     if parsed:
         return parsed
@@ -318,8 +322,8 @@ def _render_bb_rows(prefix: str, slot_token: str, seed_rows: list[dict], legacy_
 
         st.markdown(f'BB #{row_idx + 1}')
         c1, c2, c3, c4 = st.columns([2, 2, 1, 1])
-        supplier = c1.text_input('Supplier', key=k_supplier)
-        ukuran = c2.text_input('Ukuran', key=k_ukuran)
+        supplier = c1.text_input('Supplier', key=k_supplier, on_change=_request_persist)
+        ukuran = c2.text_input('Ukuran', key=k_ukuran, on_change=_request_persist)
         matang = c3.radio('Tingkat matang', OX_OPTIONS, index=None, horizontal=True, key=k_matang)
         selesai = c4.radio('Selesai', OX_OPTIONS, index=None, horizontal=True, key=k_selesai)
         out.append(
@@ -369,7 +373,7 @@ def _render_hb_rows(prefix: str, slot_token: str, seed_rows: list[dict], legacy_
         c0, c1, c2, c3 = st.columns([1.1, 1, 2.2, 1])
         c0.markdown(hb_name)
         dipakai = c1.radio('Dipakai', OX_OPTIONS, index=None, horizontal=True, key=k_d, label_visibility='collapsed')
-        alasan_raw = c2.text_input('Alasan / status', key=k_a, label_visibility='collapsed')
+        alasan_raw = c2.text_input('Alasan / status', key=k_a, label_visibility='collapsed', on_change=_request_persist)
         alasan = ALASAN_CODE_MAP.get(str(alasan_raw).strip().lower(), str(alasan_raw).strip())
         gas = c3.radio('Gas', OX_OPTIONS, index=None, horizontal=True, key=k_g, label_visibility='collapsed')
         out.append(
@@ -838,7 +842,7 @@ def main() -> None:
     with left:
         if not st.session_state.get('reporter_input'):
             st.session_state['reporter_input'] = st.session_state.get('operator_name', '')
-        reporter = st.text_input('Nama pelapor laporan', key='reporter_input')
+        reporter = st.text_input('Nama pelapor laporan', key='reporter_input', on_change=_request_persist)
     with right:
         shift = st.selectbox('Shift', ['Shift 1', 'Shift 2', 'Shift 3'], key='shift_select')
     st.caption('Autosave aktif. Tidak perlu klik simpan per slot.')
@@ -850,7 +854,7 @@ def main() -> None:
     start_3 = _render_start_time_input('Jam mulai 3 (HH:MM)', 'start_time_3')
     slots_3 = _ensure_group_slots('slots_3', start_3)
     c3_1, c3_2 = st.columns([4, 1])
-    custom_3 = c3_1.text_input('Tambah jam khusus 3 (HH:MM)', key='custom_slot_3')
+    custom_3 = c3_1.text_input('Tambah jam khusus 3 (HH:MM)', key='custom_slot_3', on_change=_request_persist)
     c3_2.markdown('<div style="height: 1.9rem;"></div>', unsafe_allow_html=True)
     if c3_2.button('Tambah jam', key='add_custom_3'):
         parsed_3 = _parse_hhmm_text(custom_3)
@@ -915,7 +919,7 @@ def main() -> None:
     start_4 = _render_start_time_input('Jam mulai 4 (HH:MM)', 'start_time_4')
     slots_4 = _ensure_group_slots('slots_4', start_4)
     c4_1, c4_2 = st.columns([4, 1])
-    custom_4 = c4_1.text_input('Tambah jam khusus 4 (HH:MM)', key='custom_slot_4')
+    custom_4 = c4_1.text_input('Tambah jam khusus 4 (HH:MM)', key='custom_slot_4', on_change=_request_persist)
     c4_2.markdown('<div style="height: 1.9rem;"></div>', unsafe_allow_html=True)
     if c4_2.button('Tambah jam', key='add_custom_4'):
         parsed_4 = _parse_hhmm_text(custom_4)
@@ -967,7 +971,7 @@ def main() -> None:
     start_5 = _render_start_time_input('Jam mulai 5 (HH:MM)', 'start_time_5')
     slots_5 = _ensure_group_slots('slots_5', start_5)
     c5_1, c5_2 = st.columns([4, 1])
-    custom_5 = c5_1.text_input('Tambah jam khusus 5 (HH:MM)', key='custom_slot_5')
+    custom_5 = c5_1.text_input('Tambah jam khusus 5 (HH:MM)', key='custom_slot_5', on_change=_request_persist)
     c5_2.markdown('<div style="height: 1.9rem;"></div>', unsafe_allow_html=True)
     if c5_2.button('Tambah jam', key='add_custom_5'):
         parsed_5 = _parse_hhmm_text(custom_5)
@@ -1035,7 +1039,7 @@ def main() -> None:
     start_6 = _render_start_time_input('Jam mulai 6 (HH:MM)', 'start_time_6')
     slots_6 = _ensure_group_slots('slots_6', start_6)
     c6_1, c6_2 = st.columns([4, 1])
-    custom_6 = c6_1.text_input('Tambah jam khusus 6 (HH:MM)', key='custom_slot_6')
+    custom_6 = c6_1.text_input('Tambah jam khusus 6 (HH:MM)', key='custom_slot_6', on_change=_request_persist)
     c6_2.markdown('<div style="height: 1.9rem;"></div>', unsafe_allow_html=True)
     if c6_2.button('Tambah jam', key='add_custom_6'):
         parsed_6 = _parse_hhmm_text(custom_6)
@@ -1068,7 +1072,7 @@ def main() -> None:
             )
             u1, u2 = st.columns([1, 2])
             u_status = u1.radio(f'[{slot_time}] Status', OX_OPTIONS, index=None, horizontal=True, key=unsteam_key)
-            u_reason = u2.text_input(f'[{slot_time}] Alasan (jika X)', key=reason_key)
+            u_reason = u2.text_input(f'[{slot_time}] Alasan (jika X)', key=reason_key, on_change=_request_persist)
             a1, a2 = st.columns(2)
             if a1.button('Next slot tambah', key=f'next_6_{slot_token}'):
                 slots = list(st.session_state['slots_6'])
@@ -1099,7 +1103,7 @@ def main() -> None:
     start_7 = _render_start_time_input('Jam mulai 7 (HH:MM)', 'start_time_7')
     slots_7 = _ensure_group_slots('slots_7', start_7)
     c7_1, c7_2 = st.columns([4, 1])
-    custom_7 = c7_1.text_input('Tambah jam khusus 7 (HH:MM)', key='custom_slot_7')
+    custom_7 = c7_1.text_input('Tambah jam khusus 7 (HH:MM)', key='custom_slot_7', on_change=_request_persist)
     c7_2.markdown('<div style="height: 1.9rem;"></div>', unsafe_allow_html=True)
     if c7_2.button('Tambah jam', key='add_custom_7'):
         parsed_7 = _parse_hhmm_text(custom_7)
@@ -1156,6 +1160,7 @@ def main() -> None:
         key='notes',
         placeholder='Tulis catatan bebas. Foto dan detail tambahan dilaporkan langsung di Telegram.',
         height=180,
+        on_change=_request_persist,
     )
     st.subheader('9. Keterangan')
     st.caption('Opsional. Boleh kosong.')
@@ -1164,6 +1169,7 @@ def main() -> None:
         key='keterangan',
         placeholder='Contoh: Jam 14:30 BB ukuran S8 kurang matang 20%, sudah lapor foto di Telegram.',
         height=140,
+        on_change=_request_persist,
     )
 
     payload = {
