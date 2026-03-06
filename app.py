@@ -841,6 +841,7 @@ def main() -> None:
         reporter = st.text_input('Nama pelapor laporan', key='reporter_input')
     with right:
         shift = st.selectbox('Shift', ['Shift 1', 'Shift 2', 'Shift 3'], key='shift_select')
+    st.caption('Autosave aktif. Tidak perlu klik simpan per slot.')
 
     if not st.session_state.get('submission_id'):
         st.session_state['submission_id'] = str(uuid.uuid4())
@@ -883,17 +884,13 @@ def main() -> None:
             c1, c2 = st.columns(2)
             read_val = c1.radio(f'[{slot_time}] Sudah baca list BB di steam', OX_OPTIONS, index=None, horizontal=True, key=read_key)
             know_val = c2.radio(f'[{slot_time}] Sudah tahu BB & ukuran', OX_OPTIONS, index=None, horizontal=True, key=know_key)
-            a1, a2, a3 = st.columns(3)
+            a1, a2 = st.columns(2)
             if a1.button('Next slot tambah', key=f'next_3_{slot_token}'):
                 slots = list(st.session_state['slots_3'])
                 slots.insert(idx + 1, _next_available_after(slot_time, slots))
                 st.session_state['slots_3'] = sorted(slots, key=_slot_sort_key)
                 st.rerun()
-            if a2.button('Simpan slot ini', key=f'save_3_{slot_token}'):
-                st.session_state[f'close_once_3_{slot_token}'] = True
-                st.session_state['_slot_save_requested'] = f'Slot {slot_time} tersimpan.'
-                st.rerun()
-            if a3.button('Hapus slot ini', key=f'ask_rm_3_{slot_token}', disabled=len(st.session_state['slots_3']) <= 1):
+            if a2.button('Hapus slot ini', key=f'ask_rm_3_{slot_token}', disabled=len(st.session_state['slots_3']) <= 1):
                 st.session_state[f'confirm_rm_3_{slot_token}'] = True
             if st.session_state.get(f'confirm_rm_3_{slot_token}'):
                 q1, q2 = st.columns(2)
@@ -947,17 +944,13 @@ def main() -> None:
             )
             st.caption('Contoh: Darmi 1/S8 / O / O')
             bb_rows = _render_bb_rows('g4', slot_token, [], legacy_slot_idx=idx)
-            a1, a2, a3 = st.columns(3)
+            a1, a2 = st.columns(2)
             if a1.button('Next slot tambah', key=f'next_4_{slot_token}'):
                 slots = list(st.session_state['slots_4'])
                 slots.insert(idx + 1, _next_available_after(slot_time, slots))
                 st.session_state['slots_4'] = sorted(slots, key=_slot_sort_key)
                 st.rerun()
-            if a2.button('Simpan slot ini', key=f'save_4_{slot_token}'):
-                st.session_state[f'close_once_4_{slot_token}'] = True
-                st.session_state['_slot_save_requested'] = f'Slot {slot_time} tersimpan.'
-                st.rerun()
-            if a3.button('Hapus slot ini', key=f'ask_rm_4_{slot_token}', disabled=len(st.session_state['slots_4']) <= 1):
+            if a2.button('Hapus slot ini', key=f'ask_rm_4_{slot_token}', disabled=len(st.session_state['slots_4']) <= 1):
                 st.session_state[f'confirm_rm_4_{slot_token}'] = True
             if st.session_state.get(f'confirm_rm_4_{slot_token}'):
                 q1, q2 = st.columns(2)
@@ -1011,17 +1004,13 @@ def main() -> None:
             v1 = s1.radio(f'[{slot_time}] Keranjang stainless kosong', OX_OPTIONS, index=None, horizontal=True, key=empty_key)
             v2 = s2.radio(f'[{slot_time}] Handover keranjang kosong ke steam', OX_OPTIONS, index=None, horizontal=True, key=hand_key)
             v3 = s3.radio(f'[{slot_time}] Sebelum istirahat kosongkan semua', OX_OPTIONS, index=None, horizontal=True, key=break_key)
-            a1, a2, a3 = st.columns(3)
+            a1, a2 = st.columns(2)
             if a1.button('Next slot tambah', key=f'next_5_{slot_token}'):
                 slots = list(st.session_state['slots_5'])
                 slots.insert(idx + 1, _next_available_after(slot_time, slots))
                 st.session_state['slots_5'] = sorted(slots, key=_slot_sort_key)
                 st.rerun()
-            if a2.button('Simpan slot ini', key=f'save_5_{slot_token}'):
-                st.session_state[f'close_once_5_{slot_token}'] = True
-                st.session_state['_slot_save_requested'] = f'Slot {slot_time} tersimpan.'
-                st.rerun()
-            if a3.button('Hapus slot ini', key=f'ask_rm_5_{slot_token}', disabled=len(st.session_state['slots_5']) <= 1):
+            if a2.button('Hapus slot ini', key=f'ask_rm_5_{slot_token}', disabled=len(st.session_state['slots_5']) <= 1):
                 st.session_state[f'confirm_rm_5_{slot_token}'] = True
             if st.session_state.get(f'confirm_rm_5_{slot_token}'):
                 q1, q2 = st.columns(2)
@@ -1080,17 +1069,13 @@ def main() -> None:
             u1, u2 = st.columns([1, 2])
             u_status = u1.radio(f'[{slot_time}] Status', OX_OPTIONS, index=None, horizontal=True, key=unsteam_key)
             u_reason = u2.text_input(f'[{slot_time}] Alasan (jika X)', key=reason_key)
-            a1, a2, a3 = st.columns(3)
+            a1, a2 = st.columns(2)
             if a1.button('Next slot tambah', key=f'next_6_{slot_token}'):
                 slots = list(st.session_state['slots_6'])
                 slots.insert(idx + 1, _next_available_after(slot_time, slots))
                 st.session_state['slots_6'] = sorted(slots, key=_slot_sort_key)
                 st.rerun()
-            if a2.button('Simpan slot ini', key=f'save_6_{slot_token}'):
-                st.session_state[f'close_once_6_{slot_token}'] = True
-                st.session_state['_slot_save_requested'] = f'Slot {slot_time} tersimpan.'
-                st.rerun()
-            if a3.button('Hapus slot ini', key=f'ask_rm_6_{slot_token}', disabled=len(st.session_state['slots_6']) <= 1):
+            if a2.button('Hapus slot ini', key=f'ask_rm_6_{slot_token}', disabled=len(st.session_state['slots_6']) <= 1):
                 st.session_state[f'confirm_rm_6_{slot_token}'] = True
             if st.session_state.get(f'confirm_rm_6_{slot_token}'):
                 q1, q2 = st.columns(2)
@@ -1145,17 +1130,13 @@ def main() -> None:
             )
             st.caption('Kode cepat alasan/status: 1=proses isi, 2=ubi cilembu, 3=ubi ungu, 4=jagung, 5=steril, 6=kosong, 7=tidak dipakai. Manual input tetap bisa.')
             hb_rows = _render_hb_rows('g7', slot_token, [], legacy_slot_idx=idx)
-            a1, a2, a3 = st.columns(3)
+            a1, a2 = st.columns(2)
             if a1.button('Next slot tambah', key=f'next_7_{slot_token}'):
                 slots = list(st.session_state['slots_7'])
                 slots.insert(idx + 1, _next_available_after(slot_time, slots))
                 st.session_state['slots_7'] = sorted(slots, key=_slot_sort_key)
                 st.rerun()
-            if a2.button('Simpan slot ini', key=f'save_7_{slot_token}'):
-                st.session_state[f'close_once_7_{slot_token}'] = True
-                st.session_state['_slot_save_requested'] = f'Slot {slot_time} tersimpan.'
-                st.rerun()
-            if a3.button('Hapus slot ini', key=f'ask_rm_7_{slot_token}', disabled=len(st.session_state['slots_7']) <= 1):
+            if a2.button('Hapus slot ini', key=f'ask_rm_7_{slot_token}', disabled=len(st.session_state['slots_7']) <= 1):
                 st.session_state[f'confirm_rm_7_{slot_token}'] = True
             if st.session_state.get(f'confirm_rm_7_{slot_token}'):
                 q1, q2 = st.columns(2)
@@ -1167,11 +1148,6 @@ def main() -> None:
                     st.session_state[f'confirm_rm_7_{slot_token}'] = False
                     st.rerun()
             group_7.append({'slot_time': slot_time, 'slot_note': str(slot_note_value or '').strip(), 'hb_rows': hb_rows})
-
-    slot_saved_msg = st.session_state.pop('_slot_save_requested', '')
-    if slot_saved_msg:
-        st.session_state['_pending_persist'] = True
-        st.success(slot_saved_msg)
 
     st.subheader('8. Catatan')
     st.caption('Opsional. Boleh kosong.')
