@@ -250,12 +250,56 @@ def _legacy_slot_indices(group_no: int) -> list[int]:
     return sorted(out)
 
 
+def _token_to_hhmm(token: str) -> str | None:
+    text = str(token or '').strip()
+    if len(text) != 4 or not text.isdigit():
+        return None
+    return _parse_hhmm_text(f'{text[:2]}:{text[2:]}')
+
+
+def _slot_tokens_from_state(group_no: int) -> list[str]:
+    out: set[str] = set()
+    for key in st.session_state.keys():
+        parts = str(key).split('_')
+        token = ''
+        if group_no == 3:
+            if key.startswith('g3_') and len(parts) == 3:
+                token = parts[2]
+        elif group_no == 4:
+            if key.startswith('g4_note_') and len(parts) == 3:
+                token = parts[2]
+            elif key.startswith('g4_bb_count_') and len(parts) == 4:
+                token = parts[3]
+            elif key.startswith('g4_bb_') and len(parts) >= 5:
+                token = parts[3]
+        elif group_no == 5:
+            if key.startswith('g5_') and len(parts) == 3:
+                token = parts[2]
+        elif group_no == 6:
+            if key.startswith('g6_') and len(parts) == 3:
+                token = parts[2]
+        elif group_no == 7:
+            if key.startswith('g7_note_') and len(parts) == 3:
+                token = parts[2]
+            elif key.startswith('g7_hb_') and len(parts) >= 5:
+                token = parts[3]
+        hhmm = _token_to_hhmm(token)
+        if hhmm:
+            out.add(hhmm)
+    return sorted(out, key=_slot_sort_key)
+
+
 def _maybe_restore_legacy_slots(slots_key: str, start_key: str, group_no: int) -> None:
     current = st.session_state.get(slots_key)
     if not isinstance(current, list):
         return
     current_clean = [str(x) for x in current if _parse_hhmm_text(str(x))]
     if len(current_clean) > 1:
+        return
+
+    token_slots = _slot_tokens_from_state(group_no)
+    if len(token_slots) > len(current_clean):
+        st.session_state[slots_key] = token_slots
         return
 
     legacy_idxs = _legacy_slot_indices(group_no)
